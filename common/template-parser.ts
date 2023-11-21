@@ -79,7 +79,7 @@ export type TemplateOpts = {
   characters?: Record<string, AppSchema.Character>
   lastMessage?: string
 
-  chatEmbed?: Memory.UserEmbed<{ name: string }>[]
+  chatEmbed?: Memory.ChatEmbed[]
   userEmbed?: Memory.UserEmbed[]
 
   /** If present, history will be rendered last */

@@ -5,4 +5,10 @@ export type UserEmbed<T = {}> = {
   date: string
 } & T
 
-export type ChatEmbed = { _id: string; msg: string; name: string; createdAt: string }
+export type ChatEmbed = {
+  id: string
+  distance: number
+  text: string
+  date: string
+  name: string
+}
