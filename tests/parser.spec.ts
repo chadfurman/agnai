@@ -5,6 +5,7 @@ import { buildPromptParts } from '/common/prompt'
 import { TemplateOpts, parseTemplate } from '/common/template-parser'
 import { AppSchema } from '/common/types'
 import { getTokenCounter } from '/srv/tokenize'
+import { chatEmbeds } from './mocks/chatEmbeds'
 
 const chars = [toChar('Robot'), toChar('Otherbot'), toChar('Thirdbot')]
 const char = chars[0]
@@ -122,7 +123,7 @@ async function getParseOpts(
       user,
       kind: 'send',
       sender: profile,
-      chatEmbeds: [],
+      chatEmbeds: overrides.chatEmbed ? overrides.chatEmbed : chatEmbeds,
       userEmbeds: [],
       resolvedScenario: overChar.scenario,
     },
