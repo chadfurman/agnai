@@ -6,6 +6,7 @@ import { TemplateOpts, parseTemplate } from '/common/template-parser'
 import { AppSchema } from '/common/types'
 import { getTokenCounter } from '/srv/tokenize'
 import { chatEmbeds } from './mocks/chatEmbeds'
+import { userEmbeds } from './mocks/userEmbeds'
 
 const chars = [toChar('Robot'), toChar('Otherbot'), toChar('Thirdbot')]
 const char = chars[0]
@@ -113,6 +114,7 @@ async function getParseOpts(
 ) {
   const overChat = overrides.char ? toChat(overrides.char) : chat
   const overChar = { ...char, ...charOverrides }
+
   const parts = await buildPromptParts(
     {
       char: overChar,
@@ -124,7 +126,7 @@ async function getParseOpts(
       kind: 'send',
       sender: profile,
       chatEmbeds: overrides.chatEmbed ? overrides.chatEmbed : chatEmbeds,
-      userEmbeds: [],
+      userEmbeds: overrides.userEmbed ? overrides.userEmbed : userEmbeds,
       resolvedScenario: overChar.scenario,
     },
     lines,
