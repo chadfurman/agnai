@@ -1,6 +1,6 @@
 import { formatCharacter } from './characters'
 import { grammar } from './grammar'
-import { PromptParts, fillPromptWithLines } from './prompt'
+import { fillPromptWithLines, PromptParts } from './prompt'
 import { AppSchema, Memory, TokenCounter } from '/common/types'
 import peggy from 'peggy'
 import { elapsedSince } from './util'
@@ -25,6 +25,7 @@ type CNode =
   | { kind: 'history-prop'; prop: HistoryProp }
   | { kind: 'history-if'; prop: HistoryProp; children: CNode[] }
   | { kind: 'bot-if'; prop: BotsProp; children: CNode[] }
+  | { kind: 'chat-embeds-prop'; prop: ChatEmbedsProp }
 
 type Holder =
   | 'char'
@@ -60,10 +61,11 @@ const repeatableHolders = new Set<RepeatableHolder>([
   'roll',
 ])
 
-type IterableHolder = 'history' | 'bots'
+type IterableHolder = 'history' | 'bots' | 'chat_embeds'
 
 type HistoryProp = 'i' | 'message' | 'dialogue' | 'name' | 'isuser' | 'isbot'
 type BotsProp = 'i' | 'personality' | 'name'
+type ChatEmbedsProp = 'i' | 'text' | 'name'
 
 export type TemplateOpts = {
   continue?: boolean
@@ -79,8 +81,8 @@ export type TemplateOpts = {
   characters?: Record<string, AppSchema.Character>
   lastMessage?: string
 
-  chatEmbed?: Memory.ChatEmbed[]
-  userEmbed?: Memory.UserEmbed[]
+  chatEmbeds?: Memory.ChatEmbed[]
+  userEmbeds?: Memory.UserEmbed[]
 
   /** If present, history will be rendered last */
   limit?: {
@@ -256,6 +258,26 @@ function renderProp(node: CNode, opts: TemplateOpts, entity: unknown, i: number)
   if (typeof node === 'string') return node
 
   switch (node.kind) {
+    case 'chat-embeds-prop': {
+      const chatEmbed = entity as string
+      switch (node.prop) {
+        case 'i': {
+          return i.toString()
+        }
+
+        case 'name': {
+          const index = chatEmbed.indexOf(':')
+          return chatEmbed.slice(0, index)
+        }
+
+        case 'text': {
+          const index = chatEmbed.indexOf(':')
+          return chatEmbed.slice(index + 1).trim()
+        }
+      }
+      break
+    }
+
     case 'bot-if':
     case 'bot-prop': {
       const bot = entity as AppSchema.Character
@@ -273,6 +295,7 @@ function renderProp(node: CNode, opts: TemplateOpts, entity: unknown, i: number)
             bot.persona.kind /* || opts.chat.overrides.kind */ // looks like the || operator's left hand side is always truthy - @malfoyslastname
           )
       }
+      break
     }
 
     case 'history-if':
@@ -307,8 +330,10 @@ function renderProp(node: CNode, opts: TemplateOpts, entity: unknown, i: number)
           return node.prop === 'isuser' ? match : !match
         }
       }
+      break
     }
   }
+  return ''
 }
 
 function renderCondition(node: ConditionNode, children: PNode[], opts: TemplateOpts) {
@@ -326,23 +351,47 @@ function renderCondition(node: ConditionNode, children: PNode[], opts: TemplateO
   return output.join('')
 }
 
-function renderIterator(holder: IterableHolder, children: CNode[], opts: TemplateOpts) {
+function getBotIterableEntities(opts: TemplateOpts) {
+  return Object.values(opts.characters || {}).filter((b) => {
+    if (!b) return false
+    if (b._id === (opts.replyAs || opts.char)._id) return false
+    if (b.deletedAt) return false
+    if (b._id.startsWith('temp-') && b.favorite === false) return false
+    return true
+  })
+}
+
+function getChatEmbedIterableEntities(opts: TemplateOpts) {
+  return opts?.parts?.chatEmbeds
+}
+
+function getDefaultIterableEntities(opts: TemplateOpts) {
+  return opts.lines
+}
+
+function getEntitiesFromOptsByIterableHolder(opts: TemplateOpts, holder: IterableHolder) {
+  switch (holder) {
+    case 'bots':
+      return getBotIterableEntities(opts)
+    case 'chat_embeds':
+      return getChatEmbedIterableEntities(opts)
+    default:
+      return getDefaultIterableEntities(opts)
+  }
+}
+
+function renderIterator(iterator: IterableHolder, children: CNode[], opts: TemplateOpts) {
   if (opts.repeatable) return ''
-  let isHistory = holder === 'history'
+  let isHistory = iterator === 'history'
+  let isChatEmbed = iterator === 'chat_embeds'
+
+  const entities = getEntitiesFromOptsByIterableHolder(opts, iterator)
+
+  if (entities == undefined) {
+    return ''
+  }
 
   const output: string[] = []
-
-  const entities =
-    holder === 'bots'
-      ? Object.values(opts.characters || {}).filter((b) => {
-          if (!b) return false
-          if (b._id === (opts.replyAs || opts.char)._id) return false
-          if (b.deletedAt) return false
-          if (b._id.startsWith('temp-') && b.favorite === false) return false
-          return true
-        })
-      : opts.lines || []
-
   let i = 0
   for (const entity of entities) {
     let curr = ''
@@ -366,6 +415,11 @@ function renderIterator(holder: IterableHolder, children: CNode[], opts: Templat
           if (result) curr += result
           break
         }
+
+        case 'chat-embeds-prop':
+          const result = renderProp(child, opts, entity, i)
+          if (result) curr += result
+          break
 
         case 'bot-prop':
         case 'history-prop': {
@@ -401,7 +455,7 @@ function renderIterator(holder: IterableHolder, children: CNode[], opts: Templat
     return id
   }
 
-  return isHistory ? output.join('\n') : output.join('')
+  return isHistory || isChatEmbed ? output.join('\n') : output.join('')
 }
 
 function renderEntityCondition(nodes: CNode[], opts: TemplateOpts, entity: unknown, i: number) {

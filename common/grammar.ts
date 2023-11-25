@@ -25,11 +25,14 @@ Expression = content:Parent* {
     return results
 }
 
-Parent "parent-node" = v:(BotIterator / HistoryIterator / HistoryInsert / Condition / Placeholder / Text) { return v }
+Parent "parent-node" = v:(BotIterator / HistoryIterator / HistoryInsert / ChatEmbedsIterator / Condition / Placeholder / Text) { return v }
 
 ManyPlaceholder "repeatable-placeholder" = OP i:(Character / User / Random / Roll) CL {
 	return { kind: 'placeholder', value: i }
 }
+
+ChatEmbedsIterator "chat-embeds-iterator" = OP "#each" WS loop:ChatEmbeds CL children:(ChatEmbedsChild / LoopText)* CloseLoop { return { kind: 'each', value: loop, children } }
+ChatEmbedsChild = i:(ChatEmbedsRef / ManyPlaceholder) { return i }
 
 BotIterator "bot-iterator" = OP "#each" WS loop:Bots CL children:(BotChild / LoopText)* CloseLoop { return { kind: 'each', value: loop, children } }
 BotChild = i:(BotRef / BotCondition / ManyPlaceholder) { return i }
@@ -60,10 +63,10 @@ Condition "if" = OP "#if" WS value:Word CL sub:(ConditionChild / ConditionText)*
   return { kind: 'if', value, children: sub.flat() }
 }
 
-InsertText "insert-text" = !(BotChild / HistoryChild / CloseCondition / CloseInsert) ch:(.) { return ch }
-LoopText "loop-text" = !(BotChild / HistoryChild / CloseCondition / CloseLoop) ch:(.)  { return ch }
+InsertText "insert-text" = !(BotChild / HistoryChild / ChatEmbedsChild / CloseCondition / CloseInsert) ch:(.) { return ch }
+LoopText "loop-text" = !(BotChild / HistoryChild / ChatEmbedsChild / CloseCondition / CloseLoop) ch:(.)  { return ch }
 ConditionText = !(ConditionChild / CloseCondition) ch:. { return ch }
-Text "text" = !(Placeholder / Condition / BotIterator / HistoryIterator) ch:. { return ch }
+Text "text" = !(Placeholder / Condition / BotIterator / HistoryIterator / ChatEmbedsIterator ) ch:. { return ch }
 
 CSV "csv" = words:WordList* WS last:Word { return [...words, last] }
 WordList = word:Word WS "," WS { return word }
@@ -87,7 +90,9 @@ Handler "handler" = "upper" / "lower"
 
 BotRef = OP prop:BotProperty CL {return { kind: 'bot-prop', prop } }
 HistoryRef = OP prop:HistoryProperty CL { return { kind: 'history-prop', prop } }
+ChatEmbedsRef = OP prop:ChatEmbedsProperty CL { return { kind: 'chat-embeds-prop', prop } }
 
+ChatEmbedsProperty "chat-embeds-prop" = "." prop:("text"i / "name"i / "i"i) { return prop.toLowerCase() }
 BotProperty "bot-prop" = "." prop:("name"i / Persona / "i"i) { return prop.toLowerCase() }
 HistoryProperty "history-prop" = "." prop:(Message / "dialogue"i / "name"i / "isuser"i / "isbot"i / "i"i) { return prop.toLowerCase() }
 
@@ -114,6 +119,7 @@ Roll "roll" = ("roll"i / "dice"i) ":"? WS "d"|0..1| max:[0-9]|0..10| { return { 
 // Iterable entities
 Bots "bots" = ( "bots"i / "bot"i ) { return "bots" }
 History "history" = ( "history"i / "messages"i / "msgs"i / "msg"i) { return "history" }
+ChatEmbeds "chat-embeds" = "chat_embeds"i { return "chat_embeds" }
 
 Interp "interp"
 	= Character

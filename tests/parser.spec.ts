@@ -6,7 +6,6 @@ import { TemplateOpts, parseTemplate } from '/common/template-parser'
 import { AppSchema } from '/common/types'
 import { getTokenCounter } from '/srv/tokenize'
 import { chatEmbeds } from './mocks/chatEmbeds'
-import { userEmbeds } from './mocks/userEmbeds'
 
 const chars = [toChar('Robot'), toChar('Otherbot'), toChar('Thirdbot')]
 const char = chars[0]
@@ -52,6 +51,13 @@ describe('Template parser tests', async () => {
   it('will iterate over messages', async () => {
     const actual = await test(`Scenario: {{scenario}}
 {{#each history}}{{.i}} {{.dialogue}}{{/each}}`)
+    expect(actual).toMatchSnapshot()
+  })
+
+  it('will iterate over chat embeds', async () => {
+    const actual = await test(`Scenario: {{scenario}}
+{{#each chat_embeds}}{{.name}}: {{.text}}{{/each}}`)
+    expect(actual).not.to.contain('#each')
     expect(actual).toMatchSnapshot()
   })
 
@@ -114,7 +120,6 @@ async function getParseOpts(
 ) {
   const overChat = overrides.char ? toChat(overrides.char) : chat
   const overChar = { ...char, ...charOverrides }
-
   const parts = await buildPromptParts(
     {
       char: overChar,
@@ -125,8 +130,8 @@ async function getParseOpts(
       user,
       kind: 'send',
       sender: profile,
-      chatEmbeds: overrides.chatEmbed ? overrides.chatEmbed : chatEmbeds,
-      userEmbeds: overrides.userEmbed ? overrides.userEmbed : userEmbeds,
+      chatEmbeds: overrides.chatEmbeds ? overrides.chatEmbeds : chatEmbeds,
+      userEmbeds: [],
       resolvedScenario: overChar.scenario,
     },
     lines,

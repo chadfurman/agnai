@@ -64,7 +64,7 @@ export type PromptOpts = {
   impersonate?: AppSchema.Character
   lastMessage: string
   trimSentences?: boolean
-  chatEmbeds: Memory.UserEmbed<{ name: string }>[]
+  chatEmbeds: Memory.ChatEmbed[]
   userEmbeds: Memory.UserEmbed[]
   resolvedScenario: string
 }
@@ -80,7 +80,7 @@ export type BuildPromptOpts = {
   members: AppSchema.Profile[]
   settings?: Partial<AppSchema.GenSettings>
   impersonate?: AppSchema.Character
-  chatEmbed?: Memory.UserEmbed<{ name: string }>[]
+  chatEmbed?: Memory.ChatEmbed[]
   userEmbed?: Memory.UserEmbed[]
 }
 
