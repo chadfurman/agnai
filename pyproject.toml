@@ -9,7 +9,7 @@ packages = [{include = "agn_ai"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-transformers = "^4.28.1"
+transformers = "^4.52.1"
 Flask = "^2.2.3"
 bitsandbytes = "^0.38.1"
 flexgen = "^0.1.7"
